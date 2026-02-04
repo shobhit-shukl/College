@@ -169,6 +169,7 @@ export default function OwnerDashboard() {
       lightBg: 'bg-amber-100',
       textColor: 'text-amber-600'
     },
+    
 
   ];
 
@@ -199,6 +200,20 @@ export default function OwnerDashboard() {
       icon: FaFileAlt,
       description: 'Prepare, review, and publish exam results',
       path: '/DraftResults',
+      color: 'from-green-500 to-emerald-600'
+    },
+        {
+      title: 'Draft Subjects',
+      icon: FaFileAlt,
+      description: 'Prepare, review, and publish exam subjects',
+      path: '/DraftSubjects',
+      color: 'from-green-500 to-emerald-600'
+    },
+        {
+      title: 'Admissions',
+      icon: FaFileAlt,
+      description: 'Prepare, review, and publish exam results',
+      path: '/Admissions',
       color: 'from-green-500 to-emerald-600'
     }
 
