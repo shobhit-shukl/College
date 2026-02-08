@@ -181,7 +181,7 @@ export default function OwnerDashboard() {
   }, []);
 
   const allModules = [
-    { title: 'Academic', icon: FaGraduationCap, description: 'Manage courses, grades, and curriculum', path: '/academy', color: 'from-blue-500 to-indigo-600' },
+    { title: 'Academic', icon: FaGraduationCap, description: 'Manage courses, grades, and curriculum', path: '/Academic', color: 'from-blue-500 to-indigo-600' },
     { title: 'HR Management', icon: FaUsers, description: 'Employees and leave management', path: '/HR', color: 'from-purple-500 to-pink-600' },
     { title: 'Library', icon: FaBook, description: 'Books catalog, borrowing, and returns', path: '/library', color: 'from-cyan-500 to-blue-600' },
     { title: 'Accounts', icon: FaDollarSign, description: 'Financial reports and transactions', path: '/Accounts', color: 'from-emerald-500 to-teal-600' },
