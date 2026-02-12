@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * Academic Setup Page
+ * 
+ * This page provides a comprehensive interface for managing the academic structure
+ * of an educational institution. It includes sections for:
+ * - Academic Years: Define and manage academic sessions
+ * - Schools/Faculties: Manage high-level academic divisions
+ * - Departments: Organize departments within schools
+ * - Courses, Subjects, Classes & Sections (coming soon)
+ * 
+ * @module AcademicSetupPage
+ */
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -25,7 +38,42 @@ import {
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Academic Years Section Component
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TOAST_CONFIG = {
+  position: 'top-center',
+  autoClose: 10000
+};
+
+const ANIMATION_DURATION = {
+  fade: 0.3,
+  stagger: 0.05,
+  modal: 0.1
+};
+
+// ============================================================================
+// COMPONENT: Academic Years Section
+// ============================================================================
+
+/**
+ * Academic Years Section Component
+ * 
+ * Displays and manages academic years/sessions. Shows the currently active year
+ * prominently and provides a list of all years with actions to activate, edit, or delete.
+ * 
+ * @param {Object} props - Component props
+ * @param {boolean} props.loading - Loading state for fetching data
+ * @param {Array} props.academicYears - List of all academic years
+ * @param {Object} props.activeYear - Currently active academic year
+ * @param {Function} props.formatDate - Date formatting utility function
+ * @param {Function} props.setShowAddModal - Toggle add modal visibility
+ * @param {Function} props.setSelectedYear - Set selected year for operations
+ * @param {Function} props.setShowConfirmModal - Toggle confirmation modal
+ * @param {string} props.openMenuId - ID of currently open dropdown menu
+ * @param {Function} props.setOpenMenuId - Set open menu ID
+ */
 function AcademicYearsSection({ 
   loading, 
   academicYears, 
@@ -297,8 +345,24 @@ function AcademicYearsSection({
   );
 }
 
-// Schools Section Component
+// ============================================================================
+// COMPONENT: Schools Section
+// ============================================================================
+
+/**
+ * Schools Section Component
+ * 
+ * Manages schools/faculties within the institution. Schools are high-level
+ * academic divisions that contain multiple departments. This component provides
+ * full CRUD (Create, Read, Update, Delete) operations for schools.
+ * 
+ * @param {Object} props - Component props
+ * @param {Function} props.formatDate - Date formatting utility function
+ */
 function SchoolsSection({ formatDate }) {
+  // ========================================
+  // State Management
+  // ========================================
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -307,6 +371,7 @@ function SchoolsSection({ formatDate }) {
   const [deletingSchool, setDeletingSchool] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Form data for add/edit operations
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -317,7 +382,14 @@ function SchoolsSection({ formatDate }) {
     is_active: true
   });
 
-  // Fetch schools
+  // ========================================
+  // API Functions
+  // ========================================
+
+  /**
+   * Fetch all schools from the API
+   * Handles errors gracefully and provides user feedback
+   */
   const fetchSchools = async () => {
     try {
       setLoading(true);
@@ -329,14 +401,12 @@ function SchoolsSection({ formatDate }) {
         console.error('API Error Response:', errorData);
         
         // Show detailed error message
+        // Build detailed error message for user
         const errorMsg = errorData.details 
           ? `${errorData.error}: ${errorData.details}` 
           : errorData.error || 'Failed to fetch schools';
         
-        toast.error(errorMsg, { 
-          autoClose: 10000,
-          position: 'top-center'
-        });
+        toast.error(errorMsg, TOAST_CONFIG);
         
         // If table doesn't exist, show empty state
         setSchools([]);
@@ -359,7 +429,14 @@ function SchoolsSection({ formatDate }) {
     fetchSchools();
   }, []);
 
-  // Reset form
+  // ========================================
+  // Form Handlers
+  // ========================================
+
+  /**
+   * Reset form to initial state
+   * Used after successful operations or when canceling
+   */
   const resetForm = () => {
     setFormData({
       name: '',
@@ -373,13 +450,20 @@ function SchoolsSection({ formatDate }) {
     setEditingSchool(null);
   };
 
-  // Open add modal
+  /**
+   * Open modal in "add new school" mode
+   */
   const handleAdd = () => {
     resetForm();
     setShowModal(true);
   };
 
-  // Open edit modal
+  /**
+   * Open modal in "edit existing school" mode
+   * Pre-populates form with school data
+   * 
+   * @param {Object} school - School object to edit
+   */
   const handleEdit = (school) => {
     setEditingSchool(school);
     setFormData({
@@ -394,10 +478,16 @@ function SchoolsSection({ formatDate }) {
     setShowModal(true);
   };
 
-  // Handle save (create or update)
+  /**
+   * Handle save operation (create new or update existing school)
+   * Determines operation based on whether editingSchool is set
+   * 
+   * @param {Event} e - Form submit event
+   */
   const handleSave = async (e) => {
     e.preventDefault();
 
+    // Validate required fields
     if (!formData.name.trim()) {
       toast.error('School name is required');
       return;
@@ -450,7 +540,10 @@ function SchoolsSection({ formatDate }) {
     }
   };
 
-  // Handle delete
+  /**
+   * Handle school deletion
+   * Permanently removes school from database
+   */
   const handleDelete = async () => {
     if (!deletingSchool) return;
 
@@ -477,7 +570,12 @@ function SchoolsSection({ formatDate }) {
     }
   };
 
-  // Toggle active status
+  /**
+   * Toggle active/inactive status of a school
+   * Allows temporarily disabling schools without deletion
+   * 
+   * @param {Object} school - School to toggle status
+   */
   const handleToggleActive = async (school) => {
     try {
       const res = await fetch('/api/schools', {
@@ -915,10 +1013,26 @@ function SchoolsSection({ formatDate }) {
   );
 }
 
-// Departments Section Component
+// ============================================================================
+// COMPONENT: Departments Section
+// ============================================================================
+
+/**
+ * Departments Section Component
+ * 
+ * Manages academic departments within schools. Departments are organizational
+ * units within schools that offer specific programs. Each department must be
+ * associated with a parent school.
+ * 
+ * @param {Object} props - Component props
+ * @param {Function} props.formatDate - Date formatting utility function
+ */
 function DepartmentsSection({ formatDate }) {
+  // ========================================
+  // State Management
+  // ========================================
   const [departments, setDepartments] = useState([]);
-  const [schools, setSchools] = useState([]);
+  const [schools, setSchools] = useState([]); // For dropdown selection
   const [loading, setLoading] = useState(true);
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -927,6 +1041,7 @@ function DepartmentsSection({ formatDate }) {
   const [deletingDepartment, setDeletingDepartment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Form data for add/edit operations
   const [formData, setFormData] = useState({
     school_id: '',
     name: '',
@@ -937,7 +1052,14 @@ function DepartmentsSection({ formatDate }) {
     is_active: true
   });
 
-  // Fetch departments
+  // ========================================
+  // API Functions
+  // ========================================
+
+  /**
+   * Fetch all departments from the API
+   * Includes school name through JOIN operation
+   */
   const fetchDepartments = async () => {
     try {
       setLoading(true);
@@ -947,14 +1069,12 @@ function DepartmentsSection({ formatDate }) {
         const errorData = await res.json();
         console.error('API Error Response:', errorData);
         
+        // Build detailed error message for user
         const errorMsg = errorData.details 
           ? `${errorData.error}: ${errorData.details}` 
           : errorData.error || 'Failed to fetch departments';
         
-        toast.error(errorMsg, { 
-          autoClose: 10000,
-          position: 'top-center'
-        });
+        toast.error(errorMsg, TOAST_CONFIG);
         
         setDepartments([]);
         setLoading(false);
@@ -972,7 +1092,10 @@ function DepartmentsSection({ formatDate }) {
     }
   };
 
-  // Fetch active schools for dropdown
+  /**
+   * Fetch active schools for dropdown selection
+   * Only active schools can be assigned to new departments
+   */
   const fetchSchools = async () => {
     try {
       setLoadingSchools(true);
@@ -999,7 +1122,13 @@ function DepartmentsSection({ formatDate }) {
     fetchSchools();
   }, []);
 
-  // Reset form
+  // ========================================
+  // Form Handlers
+  // ========================================
+
+  /**
+   * Reset form to initial state
+   */
   const resetForm = () => {
     setFormData({
       school_id: '',
@@ -1013,7 +1142,10 @@ function DepartmentsSection({ formatDate }) {
     setEditingDepartment(null);
   };
 
-  // Open add modal
+  /**
+   * Open modal in "add new department" mode
+   * Validates that at least one school exists
+   */
   const handleAdd = () => {
     if (schools.length === 0) {
       toast.warning('Please add at least one active school first');
@@ -1023,7 +1155,12 @@ function DepartmentsSection({ formatDate }) {
     setShowModal(true);
   };
 
-  // Open edit modal
+  /**
+   * Open modal in "edit existing department" mode
+   * Pre-populates form with department data
+   * 
+   * @param {Object} department - Department object to edit
+   */
   const handleEdit = (department) => {
     setEditingDepartment(department);
     setFormData({
@@ -1038,10 +1175,16 @@ function DepartmentsSection({ formatDate }) {
     setShowModal(true);
   };
 
-  // Handle save (create or update)
+  /**
+   * Handle save operation (create new or update existing department)
+   * Validates required fields before submission
+   * 
+   * @param {Event} e - Form submit event
+   */
   const handleSave = async (e) => {
     e.preventDefault();
 
+    // Validate required fields
     if (!formData.school_id) {
       toast.error('Please select a school');
       return;
@@ -1588,7 +1731,21 @@ function DepartmentsSection({ formatDate }) {
   );
 }
 
-// Placeholder Section Component
+// ============================================================================
+// COMPONENT: Placeholder Section
+// ============================================================================
+
+/**
+ * Placeholder Section Component
+ * 
+ * Generic "coming soon" section for features under development.
+ * Used for Courses, Subjects, and Classes & Sections.
+ * 
+ * @param {Object} props - Component props
+ * @param {string} props.title - Section title
+ * @param {string} props.description - Section description
+ * @param {Component} props.icon - Lucide icon component
+ */
 function PlaceholderSection({ title, description, icon: Icon }) {
   return (
     <motion.div
@@ -1632,27 +1789,51 @@ function PlaceholderSection({ title, description, icon: Icon }) {
   );
 }
 
+// ============================================================================
+// MAIN COMPONENT: Academic Setup Page
+// ============================================================================
+
+/**
+ * Main Academic Setup Page Component
+ * 
+ * Provides a sidebar navigation and dynamic content area for managing
+ * different aspects of the academic structure. Handles state management
+ * for academic years and coordinates between different sections.
+ */
 export default function AcademicSetupPage() {
   const router = useRouter();
+  
+  // ========================================
+  // State Management
+  // ========================================
+  
+  // Navigation state
   const [activeSection, setActiveSection] = useState('academic-years');
+  
+  // Academic years data and UI state
   const [academicYears, setAcademicYears] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedYear, setSelectedYear] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null); // For dropdown menus
 
+  // Form data for adding new academic year
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
     is_active: false
   });
 
-  // Get active academic year
+  // ========================================
+  // Computed Values
+  // ========================================
+  
+  // Get active academic year from the list
   const activeYear = academicYears.find(year => year.is_active);
 
-  // Sidebar menu items
+  // Sidebar navigation configuration
   const sidebarItems = [
     {
       id: 'academic-years',
@@ -1687,7 +1868,13 @@ export default function AcademicSetupPage() {
     }
   ];
 
-  // Fetch academic years
+  // ========================================
+  // API Functions
+  // ========================================
+  
+  /**
+   * Fetch all academic years from the API
+   */
   const fetchAcademicYears = async () => {
     try {
       setLoading(true);
@@ -1703,11 +1890,19 @@ export default function AcademicSetupPage() {
     }
   };
 
+  // Fetch data on component mount
   useEffect(() => {
     fetchAcademicYears();
   }, []);
 
-  // Close dropdown when clicking outside
+  // ========================================
+  // Event Handlers & Effects
+  // ========================================
+  
+  /**
+   * Close dropdown menus when clicking outside
+   * Improves UX by auto-closing open dropdowns
+   */
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (openMenuId && !event.target.closest('.relative')) {
@@ -1719,7 +1914,18 @@ export default function AcademicSetupPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
 
-  // Generate year name from dates
+  // ========================================
+  // Utility Functions
+  // ========================================
+  
+  /**
+   * Generate academic year name from start and end dates
+   * Format: YYYY-YYYY (e.g., "2024-2025")
+   * 
+   * @param {string} startDate - Start date in ISO format
+   * @param {string} endDate - End date in ISO format
+   * @returns {string} Generated year name
+   */
   const generateYearName = (startDate, endDate) => {
     if (!startDate || !endDate) return '';
     const startYear = new Date(startDate).getFullYear();
@@ -1727,7 +1933,12 @@ export default function AcademicSetupPage() {
     return `${startYear}-${endYear}`;
   };
 
-  // Handle add academic year
+  /**
+   * Handle creating a new academic year
+   * Validates dates and submits to API
+   * 
+   * @param {Event} e - Form submit event
+   */
   const handleAddYear = async (e) => {
     e.preventDefault();
     
@@ -1766,7 +1977,10 @@ export default function AcademicSetupPage() {
     }
   };
 
-  // Handle activate year
+  /**
+   * Handle activating an academic year
+   * Deactivates all other years automatically
+   */
   const handleActivateYear = async () => {
     if (!selectedYear) return;
 
@@ -1798,7 +2012,12 @@ export default function AcademicSetupPage() {
     }
   };
 
-  // Format date for display
+  /**
+   * Format date string for display
+   * 
+   * @param {string} dateString - Date in ISO format
+   * @returns {string} Formatted date (e.g., "Jan 15, 2024")
+   */
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -1809,11 +2028,18 @@ export default function AcademicSetupPage() {
     });
   };
 
+  // ========================================
+  // Render
+  // ========================================
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950">
+      {/* Toast Notification Container */}
       <ToastContainer position="top-right" autoClose={3000} />
 
-      {/* Header */}
+      {/* ========================================
+           Page Header
+           ======================================== */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 backdrop-blur-sm bg-opacity-90">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
@@ -1839,10 +2065,14 @@ export default function AcademicSetupPage() {
         </div>
       </div>
 
-      {/* Main Layout: Sidebar + Content */}
+      {/* ========================================
+           Main Layout: Sidebar + Content
+           ======================================== */}
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-6">
-          {/* LEFT SIDEBAR */}
+          {/* ========================================
+               LEFT SIDEBAR - Navigation
+               ======================================== */}
           <aside className="w-64 flex-shrink-0">
             <div className="sticky top-24">
               <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -1883,8 +2113,11 @@ export default function AcademicSetupPage() {
             </div>
           </aside>
 
-          {/* RIGHT CONTENT AREA */}
+          {/* ========================================
+               RIGHT CONTENT AREA - Dynamic Sections
+               ======================================== */}
           <main className="flex-1 min-w-0">
+            {/* Animated section transitions */}
             <AnimatePresence mode="wait">
               {activeSection === 'academic-years' && (
                 <AcademicYearsSection
