@@ -1,29 +1,19 @@
-// app/api/AuthStudents/route.js
- import { pool } from "@/lib/db";
-
- 
-
+import { pool } from "@/lib/db";
+import { scopedStudentId } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { student_id } = body;
+    const student_id = scopedStudentId(req, body.student_id);
 
     const result = await pool.query(
-      `select * from "students_result" where "Student_id" = $1`,
+      `select * from "students_result" where "Student_id" = $1 order by created_at desc`,
       [student_id]
     );
-    // 👉 saara data yahan hota hai
-    const exam_results = result.rows;
-    return new Response(
-      JSON.stringify(exam_results),
-      { status: 200 }
-    );
+
+    return Response.json(result.rows);
   } catch (error) {
     console.error("DB Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500 }
-    );
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }

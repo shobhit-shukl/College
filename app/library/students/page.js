@@ -23,7 +23,7 @@ export default function StudentDirectory() {
       try {
         const response = await fetch("/api/student_issued");
         const data = await response.json();
-        setIssuedRecords(data);
+        setIssuedRecords(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error(error);
       } finally {

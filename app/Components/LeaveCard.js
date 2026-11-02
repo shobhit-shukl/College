@@ -3,6 +3,8 @@
 import { FaCheckCircle, FaTimesCircle, FaUserTie } from "react-icons/fa";
 import StatusBadge from "./StatusBadge";
 
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
+
 export default function LeaveCard({ leave, onStatusChange }) {
   return (
     <div className="bg-white text-gray-800 rounded-xl shadow-2xl p-6 hover:scale-105 transform transition duration-300">
@@ -16,17 +18,18 @@ export default function LeaveCard({ leave, onStatusChange }) {
       </div>
 
       <p className="mb-4">
-        Starting-Date: <span className="font-semibold">{leave.start_date}</span>
+        Starting-Date: <span className="font-semibold">{formatDate(leave.start_date)}</span>
       </p>
 
       <p className="mb-4">
-        Ending-Date: <span className="font-semibold">{leave.end_date}</span>
+        Ending-Date: <span className="font-semibold">{formatDate(leave.end_date)}</span>
       </p>
 
       <div className="flex items-center justify-between mb-4">
         <StatusBadge status={leave.status} />
       </div>
 
+      {String(leave.status || "").toLowerCase() === "pending" && (
       <div className="flex gap-3">
         <button
           onClick={() => onStatusChange(leave.id, "Approved")}
@@ -41,6 +44,7 @@ export default function LeaveCard({ leave, onStatusChange }) {
           <FaTimesCircle /> Decline
         </button>
       </div>
+      )}
     </div>
   );
 }

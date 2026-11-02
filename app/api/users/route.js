@@ -17,7 +17,8 @@ export async function GET(req) {
         const offset = (page - 1) * limit;
 
         // Base Query
-        const baseQuery = `SELECT * FROM "Staff"`;
+        // Never return the Password column (this also feeds the Excel export)
+        const baseQuery = `SELECT id, "Staff_id", "Staff_name", "Staff_dept", "Staff_email", "Phone", "Staff_type", created_at FROM "Staff"`;
         const countQuery = `SELECT COUNT(*) FROM "Staff"`;
 
         if (isExport) {

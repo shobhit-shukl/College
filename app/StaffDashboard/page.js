@@ -56,15 +56,20 @@ function StaffDashboardContent() {
 
 
   const searchParams = useSearchParams();
-  const id = searchParams.get("staff_id");
+  // Read once on mount (not during render) so server and client markup match
+  const [storedId, setStoredId] = useState(null);
+  const [role, setRole] = useState("");
+  useEffect(() => {
+    setStoredId(localStorage.getItem("userId"));
+    setRole(String(localStorage.getItem("role") || "").toLowerCase());
+  }, []);
+  const id = searchParams.get("staff_id") || storedId;
 
   const Staff_details = Staff?.[0] || {};
   const department = Staff_details?.Staff_dept;
 
 
   useEffect(() => {
-    console.log("ID from state:", id);
-
     if (!id) return;
 
     fetch("/api/AuthStaffs", {
@@ -76,7 +81,7 @@ function StaffDashboardContent() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setStaff(data);
+        setStaff(Array.isArray(data) ? data : []);
       })
       .catch((err) => console.error(err));
   }, [id]);
@@ -96,7 +101,7 @@ function StaffDashboardContent() {
 
 
         const data = await res.json();
-        setLeaveHistory(data);
+        setLeaveHistory(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to fetch leave history", error);
       } finally {
@@ -104,10 +109,10 @@ function StaffDashboardContent() {
       }
     };
 
-    if (activeSection === "timeOff") {
+    if (activeSection === "timeOff" && id) {
       fetchLeaveHistory();
     }
-  }, [activeSection]);
+  }, [activeSection, id]);
 
 
 
@@ -149,16 +154,16 @@ function StaffDashboardContent() {
           body: JSON.stringify({ department }),
         })
         const data = await res.json();
-        settasks(data);
+        settasks(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to fetch Task history", error);
       }
     };
 
-    if (activeSection === "tasks") {
+    if (activeSection === "tasks" && department) {
       fetchTasks();
     }
-  }, [activeSection]);
+  }, [activeSection, department]);
 
   useEffect(() => {
     const fetchNotices = async () => {
@@ -171,7 +176,7 @@ function StaffDashboardContent() {
         });
 
         const data = await res.json();
-        setNotices(data);
+        setNotices(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch notices", err);
       } finally {
@@ -205,7 +210,7 @@ function StaffDashboardContent() {
           start_date: leaveForm.start_date,
           end_date: leaveForm.end_date,
           status: "Pending", // Hardcode initial status here
-          employee: leaveForm.employee,
+          employee: id,
           reason: leaveForm.reason
         }),
       });
@@ -246,10 +251,17 @@ function StaffDashboardContent() {
 
 
 
-  const payslips = [
-    { id: 1, month: "November 2025", netPay: 7200 },
-    { id: 2, month: "October 2025", netPay: 7150 },
-  ];
+  // Sample payslips for the two most recent months
+  const payslips = [1, 2].map((monthsAgo) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - monthsAgo);
+    return {
+      id: monthsAgo,
+      month: d.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+      netPay: monthsAgo === 1 ? 72000 : 71500,
+    };
+  });
 
   const [leaveForm, setLeaveForm] = useState({
     leave_type: "",
@@ -298,10 +310,29 @@ function StaffDashboardContent() {
     }
   }, [activeSection, id]);
 
-  console.log("Team Tasks:", teamTasks);
   /* ---------------- HANDLERS ---------------- */
   const handleProfileChange = (e, field) => {
-    setStaff({ ...Staff, [field]: e.target.value });
+    setStaff((prev) => (prev.length ? [{ ...prev[0], [field]: e.target.value }, ...prev.slice(1)] : prev));
+  };
+
+  const saveProfile = async () => {
+    try {
+      const res = await fetch("/api/AuthStaffs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: Staff_details.Staff_id,
+          Staff_email: Staff_details.Staff_email,
+          Phone: Staff_details.Phone,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Save failed");
+      setStaff([body]);
+      setEditing(false);
+    } catch (err) {
+      alert(err.message || "Could not save profile");
+    }
   };
 
 
@@ -336,7 +367,16 @@ function StaffDashboardContent() {
         ))}
 
         {/* Draft Result access - only for coordinator role */}
-        {typeof window !== 'undefined' && localStorage.getItem('role') === 'coordinator' && (
+        {['professor', 'coordinator', 'assistantprofessor'].includes(role) && (
+          <button
+            onClick={() => window.location.href = '/academy'}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg"
+          >
+            <FaUsers /> Academic Module
+          </button>
+        )}
+
+        {role === 'coordinator' && (
           <button
             onClick={() => window.location.href = '/DraftResults'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold shadow-lg"
@@ -352,7 +392,7 @@ function StaffDashboardContent() {
         */}
 
         {/* HR Dashboard Button - only visible for HR role */}
-        {typeof window !== 'undefined' && localStorage.getItem('role') === 'hr' && (
+        {role === 'hr' && (
           <button
             onClick={() => window.location.href = '/HR'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold shadow-lg"
@@ -362,7 +402,7 @@ function StaffDashboardContent() {
         )}
 
         {/* Library Dashboard Button - only visible for Librarian role */}
-        {typeof window !== 'undefined' && localStorage.getItem('role') === 'librarian' && (
+        {role === 'librarian' && (
           <button
             onClick={() => window.location.href = '/library'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold shadow-lg"
@@ -372,7 +412,7 @@ function StaffDashboardContent() {
         )}
 
         {/* Hostel Dashboard Button - only visible for Warden role */}
-        {typeof window !== 'undefined' && localStorage.getItem('role') === 'Warden' && (
+        {role === 'warden' && (
           <button
             onClick={() => window.location.href = '/HostelDashboard'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white font-semibold shadow-lg"
@@ -382,7 +422,7 @@ function StaffDashboardContent() {
         )}
 
         {/* Accountant Dashboard Button - only visible for Accountant role */}
-        {typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant' && (
+        {role === 'accountant' && (
           <button
             onClick={() => window.location.href = '/Accounts'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg"
@@ -392,7 +432,7 @@ function StaffDashboardContent() {
         )}
 
         {/* Owner Dashboard Button - visible to Dean, Admin, and Superadmin */}
-        {typeof window !== 'undefined' && ['dean','admin','superadmin'].includes(String(localStorage.getItem('role') || '').toLowerCase()) && (
+        {['dean', 'admin', 'superadmin'].includes(role) && (
           <button
             onClick={() => window.location.href = '/Owner'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white font-semibold shadow-lg"
@@ -428,7 +468,7 @@ function StaffDashboardContent() {
             <div className="flex justify-between mb-6">
               <h2 className="text-2xl font-bold text-indigo-700">Profile</h2>
               <button
-                onClick={() => setEditing(!editing)}
+                onClick={() => (editing ? saveProfile() : setEditing(true))}
                 className="bg-indigo-600 text-white px-4 py-2 rounded flex items-center gap-2"
               >
                 {editing ? <FaCheckCircle /> : <FaEdit />}
@@ -437,7 +477,13 @@ function StaffDashboardContent() {
             </div>
 
             <div className="flex gap-8 flex-wrap">
-              <img src={Staff_details?.image || " "} className="w-32 h-32 rounded-full" />
+              {Staff_details?.image ? (
+                <img src={Staff_details.image} alt="Profile photo" className="w-32 h-32 rounded-full object-cover" />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-4xl font-bold">
+                  {(Staff_details?.Staff_name || "?").replace(/^(Dr\.|Prof\.)\s*/, "").charAt(0).toUpperCase()}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                 <Input label="Name" value={Staff_details?.Staff_name || ""} disabled />
@@ -447,11 +493,13 @@ function StaffDashboardContent() {
                 <Input
                   label="Email"
                   value={Staff_details?.Staff_email || ""}
+                  onChange={(e) => handleProfileChange(e, "Staff_email")}
                   disabled={!editing}
                 />
                 <Input
                   label="Phone"
                   value={Staff_details?.Phone || ""}
+                  onChange={(e) => handleProfileChange(e, "Phone")}
                   disabled={!editing}
                 />
 
@@ -615,10 +663,7 @@ function StaffDashboardContent() {
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
                 {timetables.map((t) => {
-                  const isImage =
-                    t.file_url.endsWith(".jpg") ||
-                    t.file_url.endsWith(".jpeg") ||
-                    t.file_url.endsWith(".png");
+                  const isImage = t.is_image || /.(jpe?g|png|gif|webp)$/i.test(t.file_url || "");
 
                   return (
                     <div
@@ -790,14 +835,14 @@ function StaffDashboardContent() {
                       {leaveHistory.map(leave => (
                         <tr key={leave.id} className="hover:bg-gray-50 transition">
                           <td className="px-4 py-3 text-sm">{leave.leave_type}</td>
-                          <td className="px-4 py-3 text-sm">{leave.start_date}</td>
-                          <td className="px-4 py-3 text-sm">{leave.end_date}</td>
+                          <td className="px-4 py-3 text-sm">{formatDate(leave.start_date)}</td>
+                          <td className="px-4 py-3 text-sm">{formatDate(leave.end_date)}</td>
                           <td className="px-4 py-3">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center
                                   ${leave.status === "Approved"
                                   ? "bg-green-100 text-green-700"
-                                  : leave.status === "Rejected"
+                                  : ["Rejected", "Declined"].includes(leave.status)
                                     ? "bg-red-100 text-red-700"
                                     : "bg-yellow-100 text-yellow-700"
                                 }`}
@@ -806,7 +851,7 @@ function StaffDashboardContent() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
-                            {leave.created_at}
+                            {formatDate(leave.created_at)}
                           </td>
                         </tr>
                       ))}
@@ -861,9 +906,9 @@ function StaffDashboardContent() {
               <div key={p.id} className="flex justify-between bg-gray-50 p-4 rounded mb-3">
                 <div>
                   <p className="font-semibold">{p.month}</p>
-                  <p className="text-sm">Net Pay: ${p.netPay}</p>
+                  <p className="text-sm">Net Pay: ₹{p.netPay.toLocaleString("en-IN")}</p>
                 </div>
-                <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded">
+                <button onClick={() => window.print()} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded">
                   <FaPrint /> Print
                 </button>
               </div>
@@ -874,6 +919,8 @@ function StaffDashboardContent() {
     </div>
   );
 }
+
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString() : "—");
 
 /* ---------------- REUSABLE INPUT ---------------- */
 const Input = ({ label, value, onChange, disabled, type = "text" }) => (

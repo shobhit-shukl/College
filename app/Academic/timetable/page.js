@@ -11,8 +11,8 @@ import {
   CheckCircle,
   Loader2
 } from "lucide-react";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
+import { homePath } from "@/lib/homePath";
 
 export default function TimetableManagement() {
   const [timetables, setTimetables] = useState([]);
@@ -42,7 +42,7 @@ export default function TimetableManagement() {
       const res = await fetch("/api/timetable");
       if (!res.ok) throw new Error("Failed to fetch timetables");
       const data = await res.json();
-      setTimetables(data);
+      setTimetables(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Fetch error:", error);
       toast.error("Failed to load timetables");
@@ -130,7 +130,6 @@ export default function TimetableManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
-      <ToastContainer position="top-right" autoClose={3000} />
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -139,6 +138,12 @@ export default function TimetableManagement() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
+          <button
+            onClick={() => (window.location.href = homePath())}
+            className="mb-4 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            ← Back to Dashboard
+          </button>
           <div className="flex items-center gap-3 mb-2">
             <Calendar className="w-8 h-8 text-indigo-600" />
             <h1 className="text-4xl font-bold text-gray-800">
@@ -228,7 +233,7 @@ export default function TimetableManagement() {
                         )}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        Max 10MB
+                        Max 3MB
                       </p>
                     </div>
                     <input

@@ -13,9 +13,11 @@ import {
     FaCalendarAlt,
     FaRegFileAlt,
     FaSignOutAlt,
+    FaArrowLeft,
 } from "react-icons/fa";
 
 import Pagination from "../Components/Pagination";
+import { homePath } from "@/lib/homePath";
 
 
 export default function AcademicPage() {
@@ -140,14 +142,7 @@ export default function AcademicPage() {
         setShowAddForm(false);
 
         // Refresh students
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        const updated = await fetch("/api/students", {
-            headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-        });
-        const refreshedData = await updated.json();
-        setStudents(Array.isArray(refreshedData) ? refreshedData : []);
+        fetchStudents(pagination.currentPage);
     }
 
     const handleDeleteClick = (id) => {
@@ -231,7 +226,8 @@ export default function AcademicPage() {
 
             // Refresh staff list
             const updated = await fetch("/api/staff").then((r) => r.json());
-            setStaff(updated);
+            setStaff(Array.isArray(updated) ? updated : []);
+            setStaffList(Array.isArray(updated) ? updated : []);
 
             // Reset form
             setNewStaff({ id: "", name: "", department: "", email: "" });
@@ -308,7 +304,7 @@ export default function AcademicPage() {
                 },
             });
             const data = await res.json();
-            setStaffList(data);
+            setStaffList(Array.isArray(data) ? data : []);
         };
         fetchStaff();
     }, []);
@@ -321,7 +317,7 @@ export default function AcademicPage() {
             },
         })
             .then((res) => res.json())
-            .then((data) => setStaff(data))
+            .then((data) => setStaff(Array.isArray(data) ? data : []))
             .catch((err) => console.error("Error:", err));
     }, []);
 
@@ -374,9 +370,9 @@ export default function AcademicPage() {
         async function fetchNotices() {
             setLoadingNotices(true);
             try {
-                const res = await fetch("/api/notices"); // yeh route aapko banaana hoga
+                const res = await fetch("/api/notices");
                 const data = await res.json();
-                setNotices(data);
+                setNotices(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Failed to fetch notices:", err);
             } finally {
@@ -440,10 +436,13 @@ export default function AcademicPage() {
 
 
 
-    const [timetables] = useState([
-        { id: 1, course: "B.Tech", department: "CS", file: "timetable_sem4.pdf" },
-        { id: 2, course: "B.Tech", department: "ME", file: "timetable_sem6.pdf" },
-    ]);
+    const [timetables, setTimetables] = useState([]);
+    useEffect(() => {
+        fetch("/api/timetable")
+            .then((res) => res.json())
+            .then((data) => setTimetables(Array.isArray(data) ? data : []))
+            .catch((err) => console.error("Failed to fetch timetables:", err));
+    }, []);
 
 
 
@@ -473,6 +472,13 @@ export default function AcademicPage() {
             <div className="w-64 bg-gradient-to-b from-indigo-600 to-purple-600 text-white p-6 shadow-xl rounded-tr-2xl rounded-br-2xl">
                 <h2 className="text-2xl font-extrabold mb-8 flex items-center gap-2">Admin Panel</h2>
                 <nav className="flex flex-col gap-4">
+                    <button
+                        onClick={() => (window.location.href = homePath())}
+                        className="flex items-center gap-3 px-4 py-2 rounded-xl transition-all hover:bg-white/20"
+                    >
+                        <FaArrowLeft /> Dashboard
+                    </button>
+
                     <button
                         onClick={() => setActiveSection("students")}
                         className={`flex items-center gap-3 px-4 py-2 rounded-xl transition-all ${activeSection === "students" ? "bg-white text-indigo-600 font-bold" : "hover:bg-white/20"
@@ -505,7 +511,17 @@ export default function AcademicPage() {
                         <FaRegFileAlt /> Staff
                     </button>
 
-                    <button className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/20 mt-10">
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('role');
+                            localStorage.removeItem('profileUrl');
+                            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                            document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                            window.location.href = '/';
+                        }}
+                        className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/20 mt-10"
+                    >
                         <FaSignOutAlt /> Logout
                     </button>
                 </nav>
@@ -746,9 +762,21 @@ export default function AcademicPage() {
                 {/* TIMETABLES */}
                 {activeSection === "timetables" && (
                     <section className="bg-white p-8 rounded-2xl shadow-xl">
-                        <h2 className="text-3xl font-bold mb-6 text-indigo-700 flex items-center gap-2">
-                            <FaCalendarAlt /> Timetables
-                        </h2>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-3xl font-bold text-indigo-700 flex items-center gap-2">
+                                <FaCalendarAlt /> Timetables
+                            </h2>
+                            <a
+                                href="/Academic/timetable"
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                                Upload / Manage
+                            </a>
+                        </div>
+
+                        {timetables.length === 0 && (
+                            <p className="text-gray-500">No timetables uploaded yet.</p>
+                        )}
 
                         {timetables.map((t) => (
                             <div
@@ -756,11 +784,19 @@ export default function AcademicPage() {
                                 className="bg-gray-50 p-4 rounded-xl shadow mb-4 flex items-center gap-3"
                             >
                                 <FaRegFileAlt className="text-indigo-500" />
-                                <div>
-                                    <p><strong>Course:</strong> {t.course}</p>
+                                <div className="flex-1">
                                     <p><strong>Department:</strong> {t.department}</p>
-                                    <p><strong>File:</strong> {t.file}</p>
+                                    <p><strong>For:</strong> {t.timetable_type === "staff" ? "Staff" : "Students"}</p>
+                                    <p className="text-sm text-gray-500">Uploaded {new Date(t.uploaded_at).toLocaleDateString()}</p>
                                 </div>
+                                <a
+                                    href={t.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 font-semibold hover:underline"
+                                >
+                                    View
+                                </a>
                             </div>
                         ))}
                     </section>

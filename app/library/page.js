@@ -18,11 +18,13 @@ import {
 } from "lucide-react";
 
 import AddBookModal from "../Components/AddBookModal";
+import { homePath } from "@/lib/homePath";
 
 export default function LibraryPage() {
   const [showAddBookModal, setShowAddBookModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [profileLink, setProfileLink] = useState('/StaffDashboard');
+  const [backLink, setBackLink] = useState('/StaffDashboard');
   const [stats, setStats] = useState({
     totalBooks: 0,
     availableBooks: 0,
@@ -36,6 +38,8 @@ export default function LibraryPage() {
     const role = localStorage.getItem('role');
     const userId = localStorage.getItem('userId');
 
+    setBackLink(homePath());
+
     if (role && userId) {
       if (role === 'student') {
         setProfileLink(`/StudentDashboard?student_id=${userId}`);
@@ -48,22 +52,23 @@ export default function LibraryPage() {
       try {
         const [booksRes, issuedRes, studentsRes] = await Promise.all([
           fetch('/api/bookdetails'),
-          fetch('/api/Issued-books'),
-          fetch('/api/students')
+          fetch('/api/issue-book'),
+          fetch('/api/students?limit=1')
         ]);
 
         const books = await booksRes.json();
         const issued = await issuedRes.json();
         const students = await studentsRes.json();
 
-        const totalBooks = Array.isArray(books) ? books.length : 0;
-        const issuedCount = Array.isArray(issued) ? issued.length : 0;
+        const bookList = Array.isArray(books) ? books : [];
+        const issuedCount = Array.isArray(issued) ? issued.filter((b) => !b.returned).length : 0;
 
         setStats({
-          totalBooks,
-          availableBooks: totalBooks - issuedCount,
+          totalBooks: bookList.length,
+          // copies currently on the shelf
+          availableBooks: bookList.reduce((sum, b) => sum + (Number(b.Stock) || 0), 0),
           issuedBooks: issuedCount,
-          activeMembers: Array.isArray(students) ? students.length : 0
+          activeMembers: students?.pagination?.totalItems ?? (Array.isArray(students) ? students.length : 0)
         });
       } catch (error) {
         console.error('Error fetching library data:', error);
@@ -164,7 +169,7 @@ export default function LibraryPage() {
             <div className="flex items-center justify-between h-[80px]">
               {/* Breadcrumb */}
               <div className="flex items-center gap-4">
-                <Link href="/Owner" className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Link href={backLink} className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 </Link>
                 <div>

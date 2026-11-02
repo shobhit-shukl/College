@@ -96,15 +96,18 @@ export async function POST(req) {
   }
 }
 
-// DELETE: Remove a draft result by Student_id
+// DELETE: Remove one draft result by its id
 export async function DELETE(req) {
   try {
-    const { Student_id } = await req.json();
-    if (!Student_id) {
-      return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
+    const { id } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Result id is required" }, { status: 400 });
     }
 
-    await pool.query(`DELETE FROM public.students_result WHERE "Student_id" = $1`, [Student_id]);
+    const result = await pool.query(`DELETE FROM public.students_result WHERE id = $1`, [id]);
+    if (!result.rowCount) {
+      return NextResponse.json({ error: "Result not found" }, { status: 404 });
+    }
 
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (err) {

@@ -9,10 +9,11 @@ import {
   FaSignOutAlt,
   FaUserGraduate,
   FaExclamationCircle,
+  FaArrowLeft,
 } from "react-icons/fa";
 
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
+import { homePath } from "@/lib/homePath";
 
 
 export default function HostelDashboard() {
@@ -36,7 +37,7 @@ export default function HostelDashboard() {
     const fetchStudents = async () => {
       const res = await fetch("/api/HostelStudents");
       const data = await res.json();
-      setStudents(data);
+      setStudents(Array.isArray(data) ? data : []);
     };
     fetchStudents();
   }, []);
@@ -45,7 +46,7 @@ export default function HostelDashboard() {
     const fetchRooms = async () => {
       const res = await fetch("/api/HostelRooms");
       const data = await res.json();
-      setRooms(data);
+      setRooms(Array.isArray(data) ? data : []);
     };
     fetchRooms();
   }, []);
@@ -54,10 +55,26 @@ export default function HostelDashboard() {
     const fetchComplaints = async () => {
       const res = await fetch("/api/HostelComplaints");
       const data = await res.json();
-      setComplaints(data);
+      setComplaints(Array.isArray(data) ? data : []);
     };
     fetchComplaints();
   }, []);
+
+  const updateComplaintStatus = async (id, status) => {
+    try {
+      const res = await fetch("/api/HostelComplaints", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const updated = await res.json();
+      setComplaints((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      toast.success(`Complaint marked ${status}`);
+    } catch (err) {
+      toast.error("Could not update complaint ❌");
+    }
+  };
 
   const handleAddRoom = async () => {
     try {
@@ -116,9 +133,9 @@ export default function HostelDashboard() {
 
   /* ===== STATS ===== */
   const stats = [
-    { title: "Total Rooms", value: 120, icon: <FaBed /> },
+    { title: "Total Rooms", value: rooms.length, icon: <FaBed /> },
     { title: "Students", value: students.length, icon: <FaUsers /> },
-    { title: "Monthly Fees", value: "₹2,50,000", icon: <FaMoneyBill /> },
+    { title: "Fees Pending", value: students.filter((s) => s.fee_status !== "Paid").length, icon: <FaMoneyBill /> },
   ];
 
   return (
@@ -132,6 +149,13 @@ export default function HostelDashboard() {
         <h1 className="text-2xl font-extrabold mb-10 tracking-wide">
           🏨 Hostel Admin
         </h1>
+
+        <button
+          onClick={() => (window.location.href = homePath())}
+          className="w-full flex items-center gap-2 text-left px-4 py-3 mb-3 rounded-xl font-semibold hover:bg-white/20"
+        >
+          <FaArrowLeft /> DASHBOARD
+        </button>
 
         {["overview", "students", "rooms", "complaints"].map((item) => (
           <motion.button
@@ -263,7 +287,7 @@ export default function HostelDashboard() {
             </motion.section>
           )}
 
-          <AnimatePresence>
+          <AnimatePresence key="student-form">
             {openStudentForm && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -390,7 +414,7 @@ export default function HostelDashboard() {
           )}
 
 
-          <AnimatePresence>
+          <AnimatePresence key="room-form">
             {openRoomForm && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -460,7 +484,7 @@ export default function HostelDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Complaints.map((c) => (
                   <motion.div
-                    key={c.complaint_title}
+                    key={c.id}
                     whileHover={{ scale: 1.05 }}
                     className="bg-white rounded-2xl shadow-xl p-6"
                   >
@@ -472,13 +496,30 @@ export default function HostelDashboard() {
                     <span
                       className={`px-4 py-1 rounded-full text-sm font-bold ${c.status === "Resolved"
                           ? "bg-green-100 text-green-700"
-                          : c.Status === "Pending"
+                          : c.status === "Pending"
                             ? "bg-yellow-100 text-yellow-700"
                             : "bg-red-100 text-red-700"
                         }`}
                     >
-                      {c.Status}
+                      {c.status}
                     </span>
+
+                    {c.status === "Pending" && (
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => updateComplaintStatus(c.id, "Resolved")}
+                          className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700"
+                        >
+                          Mark Resolved
+                        </button>
+                        <button
+                          onClick={() => updateComplaintStatus(c.id, "Rejected")}
+                          className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -487,7 +528,6 @@ export default function HostelDashboard() {
 
         </AnimatePresence>
       </main>
-      <ToastContainer position="top-right" />
     </div>
 
   );

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { pool } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+
+// Vercel's filesystem is read-only, so the photo is stored as a data URL in the image column
+const MAX_IMAGE_CHARS = 3 * 1024 * 1024;
 
 export async function POST(req) {
   try {
@@ -12,32 +14,27 @@ export async function POST(req) {
       return NextResponse.json({ error: "id, role and image are required" }, { status: 400 });
     }
 
-    // allow student to upload only their own image; staff/superadmin allowed for any
-    if (user.role === "student" && String(user.id) !== String(id)) {
+    const isStudentTarget = String(bodyRole).toLowerCase() === "student";
+
+    // students may only change their own photo
+    if (String(user.role).toLowerCase() === "student" && (!isStudentTarget || String(user.id) !== String(id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // image is expected as data URL: data:<mime>;base64,<data>
-    const match = image.match(/^data:(image\/[^;]+);base64,(.+)$/);
-    if (!match) return NextResponse.json({ error: "Invalid image data" }, { status: 400 });
+    if (!/^data:image\/[^;]+;base64,/.test(image)) {
+      return NextResponse.json({ error: "Invalid image data" }, { status: 400 });
+    }
+    if (image.length > MAX_IMAGE_CHARS) {
+      return NextResponse.json({ error: "Image too large (max ~2 MB)" }, { status: 413 });
+    }
 
-    const mime = match[1];
-    const ext = mime.split("/")[1];
-    const data = Buffer.from(match[2], "base64");
+    const result = isStudentTarget
+      ? await pool.query(`UPDATE students SET image = $1 WHERE student_id = $2`, [image, id])
+      : await pool.query(`UPDATE "Staff" SET image = $1 WHERE "Staff_id" = $2`, [image, id]);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!result.rowCount) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // ensure filename uses the target role (student files use `student-<id>-...`)
-    const targetRole = bodyRole === "student" ? "student" : (bodyRole || user.role || "user");
-    const filename = `${targetRole}-${id}-${Date.now()}.${ext}`;
-    const filepath = path.join(uploadsDir, filename);
-
-    await fs.promises.writeFile(filepath, data);
-
-    const url = `/uploads/${filename}`; // served from public/
-
-    return NextResponse.json({ url }, { status: 201 });
+    return NextResponse.json({ url: image }, { status: 201 });
   } catch (err) {
     console.error("UPLOAD ERROR:", err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaUser, FaTasks, FaBell, FaSignOutAlt } from "react-icons/fa";
+import { FaUser, FaTasks, FaBell, FaSignOutAlt, FaArrowLeft } from "react-icons/fa";
+import { homePath } from "@/lib/homePath";
 
 export default function StaffPage() {
   const [activeSection, setActiveSection] = useState("staffs");
@@ -11,13 +12,12 @@ export default function StaffPage() {
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
   const [assignedTeamTasks, setAssignedTeamTasks] = useState([]);
 
-  console.log(staffList);
 
   const fetchAssignedTeamTasks = async () => {
     try {
       const res = await fetch("/api/assignTeamTask");
       const data = await res.json();
-      setAssignedTeamTasks(data);
+      setAssignedTeamTasks((Array.isArray(data) ? data : []));
     } catch (error) {
       console.error("Fetch team tasks error:", error);
     }
@@ -42,20 +42,20 @@ export default function StaffPage() {
   const fetchStaff = async () => {
     const res = await fetch("/api/staff");
     const data = await res.json();
-    setStaffList(data);
+    setStaffList((Array.isArray(data) ? data : []));
   };
 
   const fetchStaffNotices = async () => {
     const res = await fetch("/api/staffNotices");
     const data = await res.json();
-    setNotices(data);
+    setNotices((Array.isArray(data) ? data : []));
   };
 
 
   const fetchTasks = async () => {
     const res = await fetch("/api/AllTask");
     const data = await res.json();
-    setTasks(data);
+    setTasks((Array.isArray(data) ? data : []));
   };
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     fetchStaffNotices();
-  })
+  }, []);
 
   const [notices, setNotices] = useState([]);
 
@@ -150,13 +150,16 @@ export default function StaffPage() {
   const [staffSearchForm, setStaffSearchForm] = useState({ id: "", name: "", department: "" });
 
   const filteredStaff = staffList.filter((s) =>
-    (!staffSearchForm.id || s.id.toLowerCase().includes(staffSearchForm.id.toLowerCase())) &&
-    (!staffSearchForm.name || s.name.toLowerCase().includes(staffSearchForm.name.toLowerCase())) &&
-    (!staffSearchForm.department || s.department.toLowerCase().includes(staffSearchForm.department.toLowerCase()))
+    (!staffSearchForm.id || String(s.id || "").toLowerCase().includes(staffSearchForm.id.toLowerCase())) &&
+    (!staffSearchForm.name || String(s.name || "").toLowerCase().includes(staffSearchForm.name.toLowerCase())) &&
+    (!staffSearchForm.department || String(s.department || "").toLowerCase().includes(staffSearchForm.department.toLowerCase()))
   );
 
   // ===== ADMIN / SUPERADMIN CHECK =====
-  const currentUserRole = "superadmin"; // Example: current logged in user role
+  const [currentUserRole, setCurrentUserRole] = useState("");
+  useEffect(() => {
+    setCurrentUserRole(String(localStorage.getItem("role") || "").toLowerCase());
+  }, []);
 
   const handleDeleteStaff = async (staffId) => {
     // Confirm deletion
@@ -430,6 +433,12 @@ const sendSMS = async (num) => {
         <h2 className="text-2xl font-extrabold mb-8 flex items-center gap-2">Admin Panel</h2>
         <nav className="flex flex-col gap-4">
           <button
+            onClick={() => (window.location.href = homePath())}
+            className="flex items-center gap-3 px-4 py-2 rounded-xl transition-all hover:bg-white/20"
+          >
+            <FaArrowLeft /> Dashboard
+          </button>
+          <button
             onClick={() => setActiveSection("staffs")}
             className={`flex items-center gap-3 px-4 py-2 rounded-xl transition-all ${activeSection === "staffs" ? "bg-white text-indigo-600 font-bold" : "hover:bg-white/20"
               }`}
@@ -549,7 +558,7 @@ const sendSMS = async (num) => {
                     <td className="p-3">{s.email}</td>
                     <td className="p-3">{s.role}</td>
                     <td className="p-3 flex gap-2">
-                      {currentUserRole === "superadmin" && (
+                      {["superadmin", "admin"].includes(currentUserRole) && (
                         <button
                           onClick={() => handleDeleteStaff(s.id)}
                           className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
@@ -780,7 +789,7 @@ const sendSMS = async (num) => {
                         Dept: <span className="uppercase">{task.dept}</span>
                       </span>
 
-                      {currentUserRole === "superadmin" && (
+                      {["superadmin", "admin"].includes(currentUserRole) && (
                         <button
                           onClick={() => handleDeleteTasks(task.Task_title)}
                           className="
@@ -885,7 +894,7 @@ const sendSMS = async (num) => {
                         Dept: <span className="uppercase">{notice.dept}</span>
                       </span>
 
-                      {currentUserRole === "superadmin" && (
+                      {["superadmin", "admin"].includes(currentUserRole) && (
                         <button
                           className="
                             px-3 py-1 text-sm font-semibold rounded-lg

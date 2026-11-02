@@ -19,11 +19,13 @@ import {
 
 import AddStaffModal from "../Components/AddStaffNodal";
 import DownloadReportButton from "../Components/DownloadReportButton";
+import { homePath } from "@/lib/homePath";
 
 export default function HRPage() {
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [profileLink, setProfileLink] = useState('/StaffDashboard');
+  const [backLink, setBackLink] = useState('/StaffDashboard');
   const [stats, setStats] = useState({
     totalEmployees: 0,
     onLeaveToday: 0,
@@ -37,6 +39,8 @@ export default function HRPage() {
     const role = localStorage.getItem('role');
     const userId = localStorage.getItem('userId');
 
+    setBackLink(homePath());
+
     if (role && userId) {
       if (role === 'student') {
         setProfileLink(`/StudentDashboard?student_id=${userId}`);
@@ -49,20 +53,22 @@ export default function HRPage() {
       try {
         const [staffRes, leavesRes] = await Promise.all([
           fetch('/api/staff'),
-          fetch('/api/leaves')
+          fetch('/api/leaves?limit=1000')
         ]);
 
         const staff = await staffRes.json();
-        const leaves = await leavesRes.json();
+        const leavesBody = await leavesRes.json();
+        const leaves = Array.isArray(leavesBody) ? leavesBody : (leavesBody?.data || []);
+        const statusIs = (leave, status) => String(leave.status || '').toLowerCase() === status;
 
         const today = new Date().toISOString().split('T')[0];
         const onLeaveToday = Array.isArray(leaves) ? leaves.filter(leave => {
           const startDate = new Date(leave.start_date).toISOString().split('T')[0];
           const endDate = new Date(leave.end_date).toISOString().split('T')[0];
-          return startDate <= today && endDate >= today && leave.status === 'approved';
+          return startDate <= today && endDate >= today && statusIs(leave, 'approved');
         }).length : 0;
 
-        const pendingLeaves = Array.isArray(leaves) ? leaves.filter(l => l.status === 'pending').length : 0;
+        const pendingLeaves = Array.isArray(leaves) ? leaves.filter(l => statusIs(l, 'pending')).length : 0;
 
         setStats({
           totalEmployees: Array.isArray(staff) ? staff.length : 0,
@@ -162,7 +168,7 @@ export default function HRPage() {
             <div className="flex items-center justify-between h-[80px]">
               {/* Breadcrumb */}
               <div className="flex items-center gap-4">
-                <Link href="/StaffDashboard" className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Link href={backLink} className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 </Link>
                 <div>

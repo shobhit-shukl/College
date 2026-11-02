@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DownloadReportButton from '../Components/DownloadReportButton';
+import { homePath } from '@/lib/homePath';
 
 export default function DraftResultsPage() {
   const [form, setForm] = useState({
@@ -23,7 +24,7 @@ export default function DraftResultsPage() {
     try {
       const res = await fetch('/api/draft-results');
       const data = await res.json();
-      setResults(data);
+      setResults(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("❌ Error fetching draft results:", err);
     }
@@ -95,20 +96,20 @@ export default function DraftResultsPage() {
     setResults(prev => [...prev, data.data]);
   };
 
-  const handleDelete = async (studentId) => {
+  const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this draft result?')) return;
 
     try {
       const res = await fetch('/api/draft-results', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Student_id: studentId })
+        body: JSON.stringify({ id })
       });
 
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Failed to delete draft result');
 
-      setResults(prev => prev.filter(r => String(r.Student_id) !== String(studentId)));
+      setResults(prev => prev.filter(r => r.id !== id));
       alert(data.message || 'Deleted successfully');
     } catch (err) {
       console.error('❌ Error deleting draft result:', err);
@@ -118,14 +119,23 @@ export default function DraftResultsPage() {
 
   // Functions for quick stats
   const totalStudents = results.length;
-  const avgCGPA = results.length > 0 ? (results.reduce((sum, r) => sum + r.CGPA, 0) / results.length).toFixed(2) : 0;
-  const highestRank = results.length > 0 ? Math.min(...results.map(r => r.Rank)) : '-';
+  // CGPA and Rank are stored as text
+  const avgCGPA = results.length > 0 ? (results.reduce((sum, r) => sum + (Number(r.CGPA) || 0), 0) / results.length).toFixed(2) : 0;
+  const ranks = results.map(r => Number(r.Rank)).filter(n => Number.isFinite(n) && n > 0);
+  const highestRank = ranks.length > 0 ? Math.min(...ranks) : '-';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-pink-50 p-6">
       <div className="max-w-6xl mx-auto space-y-10">
 
         {/* Page Header */}
+        <button
+          onClick={() => (window.location.href = homePath())}
+          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+        >
+          ← Back to Dashboard
+        </button>
+
         <header className="text-center mb-10">
           <h1 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600">
             Student Draft Results Dashboard
@@ -302,7 +312,7 @@ export default function DraftResultsPage() {
                       <td className="border px-3 py-2">{(r.marks || []).join(", ")}</td>
                       <td className="border px-3 py-2">{(r.total_marks || []).join(", ")}</td>
                       <td className="border px-3 py-2">
-                        <button onClick={() => handleDelete(r.Student_id)} className="text-red-600 font-semibold hover:underline">
+                        <button onClick={() => handleDelete(r.id)} className="text-red-600 font-semibold hover:underline">
                           Delete
                         </button>
                       </td>

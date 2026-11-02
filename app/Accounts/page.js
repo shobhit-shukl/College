@@ -19,10 +19,12 @@ import {
     FileText,
     PieChart
 } from "lucide-react";
+import { homePath } from "@/lib/homePath";
 
 export default function AccountantPage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [profileLink, setProfileLink] = useState('/StaffDashboard');
+    const [backLink, setBackLink] = useState('/StaffDashboard');
     const [stats, setStats] = useState({
         totalCollection: 0,
         totalPending: 0,
@@ -35,6 +37,8 @@ export default function AccountantPage() {
         // Set profile link based on role and userId
         const role = localStorage.getItem('role');
         const userId = localStorage.getItem('userId');
+
+        setBackLink(homePath());
 
         if (role && userId) {
             if (role === 'student') {
@@ -182,7 +186,7 @@ export default function AccountantPage() {
                         <div className="flex items-center justify-between h-[80px]">
                             {/* Breadcrumb */}
                             <div className="flex items-center gap-4">
-                                <Link href="/StaffDashboard" className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <Link href={backLink} className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                                 </Link>
                                 <div>

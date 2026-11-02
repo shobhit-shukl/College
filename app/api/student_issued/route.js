@@ -19,6 +19,7 @@ export async function GET() {
       FROM "Issue-Books" ib
       JOIN "students" s ON ib.student_id = s.student_id
       JOIN "Books" b ON ib.book_id = b."Book-Id"
+      WHERE NOT ib.returned
       ORDER BY ib.id ASC;
     `;
 

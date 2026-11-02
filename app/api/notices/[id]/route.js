@@ -3,7 +3,7 @@ import { pool } from "@/lib/db";
 
 export async function DELETE(req, { params }) {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     const result = await pool.query(
       "DELETE FROM notices WHERE id = $1 RETURNING *",
