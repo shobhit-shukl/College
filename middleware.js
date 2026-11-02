@@ -15,6 +15,8 @@ const protectedRoutes = [
     '/UserRoleManagement',
     '/StaffsDetails',
     '/AdminDashboard',
+    '/academy',
+    '/DraftResults',
 ];
 
 /**
@@ -27,13 +29,13 @@ const roleAccess = {
     student: ['/StudentDashboard'],
 
     // Professor - staff dashboard, academic, library
-    professor: ['/StaffDashboard', '/Academic', '/library', '/StaffsDetails'],
+    professor: ['/StaffDashboard', '/Academic', '/academy', '/DraftResults', '/library', '/StaffsDetails'],
 
     // Coordinator - staff dashboard, academic
-    coordinator: ['/StaffDashboard', '/Academic', '/library', '/StaffsDetails'],
+    coordinator: ['/StaffDashboard', '/Academic', '/academy', '/DraftResults', '/library', '/StaffsDetails'],
 
     // Dean - full management access
-    dean: ['/StaffDashboard', '/Owner', '/HR', '/Academic', '/Accounts', '/library', '/UserRoleManagement', '/StaffsDetails'],
+    dean: ['/StaffDashboard', '/Owner', '/HR', '/Academic', '/academy', '/DraftResults', '/Accounts', '/HostelDashboard', '/library', '/UserRoleManagement', '/StaffsDetails'],
 
     // HR - only profile and HR management
     hr: ['/StaffDashboard', '/HR'],
@@ -45,16 +47,16 @@ const roleAccess = {
     accountant: ['/StaffDashboard', '/Accounts', '/library'],
 
     // Assistant Professor - similar to professor
-    assistantprofessor: ['/StaffDashboard', '/Academic', '/library', '/StaffsDetails'],
+    assistantprofessor: ['/StaffDashboard', '/Academic', '/academy', '/DraftResults', '/library', '/StaffsDetails'],
 
     // Admin - full access (same as superadmin)
-    admin: ['/StudentDashboard', '/StaffDashboard', '/Owner', '/HR', '/Academic', '/Accounts', '/HostelDashboard', '/library', '/UserRoleManagement', '/StaffsDetails', '/AdminDashboard'],
+    admin: ['/StudentDashboard', '/StaffDashboard', '/Owner', '/HR', '/Academic', '/academy', '/DraftResults', '/Accounts', '/HostelDashboard', '/library', '/UserRoleManagement', '/StaffsDetails', '/AdminDashboard'],
 
     // Warden - hostel management + staff dashboard
     warden: ['/StaffDashboard', '/HostelDashboard', '/StaffsDetails'],
 
     // Superadmin - full access to everything
-    superadmin: ['/StudentDashboard', '/StaffDashboard', '/Owner', '/HR', '/Academic', '/Accounts', '/HostelDashboard', '/library', '/UserRoleManagement', '/StaffsDetails', '/AdminDashboard'],
+    superadmin: ['/StudentDashboard', '/StaffDashboard', '/Owner', '/HR', '/Academic', '/academy', '/DraftResults', '/Accounts', '/HostelDashboard', '/library', '/UserRoleManagement', '/StaffsDetails', '/AdminDashboard'],
 };
 
 /**
@@ -189,8 +191,8 @@ export async function middleware(req) {
     }
 
     // 🔁 Logged in but accessing login page (/) - redirect to dashboard
-    if (session && role && pathname === '/') {
-        return redirectToDashboard(roleLower, req);
+    if (session && role && pathname === '/' && defaultDashboard[roleLower]) {
+        return redirectToDashboard(roleLower, req, session);
     }
 
     // 🔒 Role based protection - check if user has access to the route
@@ -203,7 +205,7 @@ export async function middleware(req) {
 
         // If user doesn't have access, redirect to their dashboard
         if (!hasAccess) {
-            return redirectToDashboard(roleLower, req);
+            return redirectToDashboard(roleLower, req, session);
         }
     }
 
@@ -211,11 +213,14 @@ export async function middleware(req) {
 }
 
 /**
- * Redirect user to their default dashboard based on role
+ * Redirect user to their default dashboard based on role, keeping the id
+ * query param the dashboards read (?student_id / ?staff_id / ?admin_id)
  */
-function redirectToDashboard(role, req) {
-    const redirectPath = defaultDashboard[role] || '/';
-    return NextResponse.redirect(new URL(redirectPath, req.url));
+function redirectToDashboard(role, req, session) {
+    const url = new URL(defaultDashboard[role] || '/', req.url);
+    const idParam = { '/StudentDashboard': 'student_id', '/StaffDashboard': 'staff_id', '/Owner': 'admin_id' }[url.pathname];
+    if (idParam && session?.id) url.searchParams.set(idParam, session.id);
+    return NextResponse.redirect(url);
 }
 
 /**

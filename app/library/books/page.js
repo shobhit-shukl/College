@@ -1,6 +1,7 @@
 "use client";
 
 import Loader from "@/app/Components/Loader";
+import BackLink from "@/app/Components/BackLink";
 import { useEffect, useState } from "react";
 import { FiEdit, FiTrash } from "react-icons/fi";
 import EditBookModal from "@/app/Components/EditBookModal";
@@ -103,6 +104,7 @@ export default function BooksPage() {
 
   return (
     <div className="min-h-screen p-10 text-white bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800">
+      <BackLink href="/library" label="Library" light />
       <h1 className="text-4xl font-bold mb-8 drop-shadow-md">
         📚 Books Management
       </h1>

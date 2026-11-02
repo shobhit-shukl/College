@@ -180,6 +180,8 @@ export default function OwnerDashboard() {
     setRole(r);
   }, []);
 
+  const roleLabel = { superadmin: 'Super Admin', admin: 'Admin', dean: 'Dean' }[String(role || '').toLowerCase()] || 'Admin';
+
   const allModules = [
     { title: 'Academic', icon: FaGraduationCap, description: 'Manage courses, grades, and curriculum', path: '/academy', color: 'from-blue-500 to-indigo-600' },
     { title: 'HR Management', icon: FaUsers, description: 'Employees and leave management', path: '/HR', color: 'from-purple-500 to-pink-600' },
@@ -227,7 +229,8 @@ export default function OwnerDashboard() {
 
   const allSidebarLinks = [
     { label: 'Dashboard', icon: FaChartLine, href: '/Owner', active: true },
-    { label: 'Academic', icon: FaGraduationCap, href: '/Academic' },
+    { label: 'Academic', icon: FaGraduationCap, href: '/academy' },
+    { label: 'Timetables', icon: FaCalendarAlt, href: '/Academic/timetable' },
     { label: 'HR', icon: FaUsers, href: '/HR' },
     { label: 'Library', icon: FaBook, href: '/library' },
     { label: 'Accounts', icon: FaDollarSign, href: '/Accounts' },
@@ -391,11 +394,11 @@ export default function OwnerDashboard() {
 
             <div className="flex items-center gap-3 p-1.5 pr-4 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-teal-500 flex items-center justify-center shadow-md">
-                <span className="text-white font-semibold text-sm">AD</span>
+                <span className="text-white font-semibold text-sm">{roleLabel.split(' ').map(w => w[0]).join('')}</span>
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-slate-800">Super Admin</p>
-                <p className="text-xs text-slate-500">admin@erp.com</p>
+                <p className="text-sm font-semibold text-slate-800">{roleLabel}</p>
+                <p className="text-xs text-slate-500">ERP Pro</p>
               </div>
             </div>
           </div>
@@ -412,7 +415,7 @@ export default function OwnerDashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold text-slate-800 mb-2">
-                  Welcome back, <span className="bg-gradient-to-r from-indigo-600 to-teal-500 bg-clip-text text-transparent">Admin</span> 👋
+                  Welcome back, <span className="bg-gradient-to-r from-indigo-600 to-teal-500 bg-clip-text text-transparent">{roleLabel}</span> 👋
                 </h1>
                 <p className="text-slate-500">Here's what's happening with your institution today.</p>
               </div>
@@ -447,6 +450,7 @@ export default function OwnerDashboard() {
                   if (action.label === 'Add Student') setShowAddStudentModal(true);
                   if (action.label === 'Add Staff') setShowAddStaffModal(true);
                   if (action.label === 'Upload Timetable') setShowTimetableModal(true);
+                  if (action.href) window.location.href = action.href;
                 }}
               >
                 <action.icon className="w-4 h-4" />
@@ -553,8 +557,13 @@ export default function OwnerDashboard() {
                     >
                       <option value="">Select Department</option>
                       <option value="Computer Science">Computer Science</option>
-                      <option value="Mechanical">Mechanical</option>
+                      <option value="Information Technology">Information Technology</option>
+                      <option value="Electronics">Electronics</option>
                       <option value="Electrical">Electrical</option>
+                      <option value="Mechanical">Mechanical</option>
+                      <option value="Civil">Civil</option>
+                      <option value="Chemical">Chemical</option>
+                      <option value="Biotechnology">Biotechnology</option>
                     </select>
 
                     <select

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import LeaveCard from "@/app/Components/LeaveCard";
+import BackLink from "@/app/Components/BackLink";
 import LeaveFilter from "@/app/Components/LeaveFilter";
 import DownloadReportButton from "@/app/Components/DownloadReportButton";
 
@@ -68,10 +69,13 @@ export default function LeaveManagement() {
   };
   // Filter leaves based on current filter
   const filteredLeaves =
-    filter === "All" ? leaves : leaves.filter(leave => leave.status === filter);
+    filter === "All"
+      ? leaves
+      : leaves.filter(leave => leave.status === filter || (filter === "Declined" && leave.status === "Rejected"));
 
   return (
     <div className="min-h-screen p-10 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 text-white">
+      <BackLink href="/HR" label="HR Management" light />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold text-center">Leave Management</h1>
         <DownloadReportButton

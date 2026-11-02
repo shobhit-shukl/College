@@ -1,29 +1,23 @@
- import { pool } from "@/lib/db";
-
- 
-
+import { pool } from "@/lib/db";
+import { scopedStudentId } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { student_id } = body;
+    const student_id = scopedStudentId(req, body.student_id);
 
     const result = await pool.query(
-      `select * from "Issue-Books" where student_id = $1`,
+      `SELECT ib.*, COALESCE(ib.book_name, b."Book-Name") AS book_name
+       FROM "Issue-Books" ib
+       LEFT JOIN "Books" b ON b."Book-Id" = ib.book_id
+       WHERE ib.student_id = $1
+       ORDER BY ib.issue_date DESC, ib.id DESC`,
       [student_id]
     );
-    // 👉 saara data yahan hota hai
-    const Issued_books = result.rows;
-     
-    return new Response(
-      JSON.stringify(Issued_books),
-      { status: 200 }
-    );
+
+    return Response.json(result.rows);
   } catch (error) {
     console.error("DB Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500 }
-    );
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }

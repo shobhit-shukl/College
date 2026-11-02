@@ -10,7 +10,7 @@ export async function GET(req) {
 
     const res = await pool.query(
       "SELECT * FROM attendance WHERE student_id=$1",
-      [user.studentId]
+      [user.id]
     );
 
     return Response.json({ attendance: res.rows[0] });

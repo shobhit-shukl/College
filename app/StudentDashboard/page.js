@@ -34,7 +34,12 @@ function StudentDashboardContent() {
   const [editing, setEditing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const searchParams = useSearchParams();
-  const id = searchParams.get("student_id");
+  // Fall back to the id saved at login when the URL has no ?student_id
+  const [storedId, setStoredId] = useState(null);
+  useEffect(() => {
+    setStoredId(localStorage.getItem("userId"));
+  }, []);
+  const id = searchParams.get("student_id") || storedId;
 
   const [student, setStudent] = useState([]);
   const [notice, setnotice] = useState([]);
@@ -99,6 +104,7 @@ function StudentDashboardContent() {
             : {}),
         },
         body: JSON.stringify({
+          student_id,
           name: complaintForm.name,
           complaint_title: complaintForm.complaint_title,
           complaint_desc: complaintForm.complaint_desc,
@@ -110,6 +116,7 @@ function StudentDashboardContent() {
       if (!res.ok) throw new Error(data.error);
 
       setComplaintStatus("success");
+      setComplaints((prev) => [data, ...prev]);
       setComplaintForm({
         name: "",
         complaint_title: "",
@@ -143,7 +150,7 @@ function StudentDashboardContent() {
         if (!res.ok) throw new Error((body && body.error) || "Failed");
         return body;
       })
-      .then((data) => setStudent(data))
+      .then((data) => setStudent(Array.isArray(data) ? data : []))
       .catch((err) => console.error(err));
   }, [id]);
 
@@ -164,7 +171,7 @@ function StudentDashboardContent() {
       body: JSON.stringify({ student_course }),
     })
       .then((res) => res.json())
-      .then((data) => setnotice(data))
+      .then((data) => setnotice(Array.isArray(data) ? data : []))
       .catch((err) => console.error(err));
   }, [student_course]);
 
@@ -181,11 +188,10 @@ function StudentDashboardContent() {
       body: JSON.stringify({ student_id }),
     })
       .then((res) => res.json())
-      .then((data) => setresults(data))
+      .then((data) => setresults(Array.isArray(data) ? data : []))
       .catch((err) => console.error(err));
   }, [student_id]);
 
-  console.log(results);
 
 
   useEffect(() => {
@@ -200,7 +206,7 @@ function StudentDashboardContent() {
       body: JSON.stringify({ student_id }),
     })
       .then((res) => res.json())
-      .then((data) => setattendance(data))
+      .then((data) => setattendance(Array.isArray(data) ? data : []))
       .catch((err) => console.error(err));
   }, [student_id]);
 
@@ -217,7 +223,7 @@ function StudentDashboardContent() {
       body: JSON.stringify({ student_id }),
     })
       .then((res) => res.json())
-      .then((data) => setIssuedBooks(data))
+      .then((data) => setIssuedBooks(Array.isArray(data) ? data : []))
       .catch((err) => console.error(err));
   }, [student_id]);
 
@@ -261,9 +267,9 @@ function StudentDashboardContent() {
       },
       body: JSON.stringify({ student_id }),
     })
-      .then((res) => res.json())
-      .then((data) => {
-        setHostelData(data);
+      .then(async (res) => {
+        // 404 means this student has no hostel record
+        setHostelData(res.ok ? await res.json() : null);
       })
       .catch((err) => {
         console.error("Failed to fetch hostel profile data", err);
@@ -274,12 +280,14 @@ function StudentDashboardContent() {
   }, [student_id]);
 
   useEffect(() => {
+    if (!student_id) return;
+
     const fetchComplaints = async () => {
       setLoadingComplaints(true);
       try {
-        const res = await fetch(`/api/HostelComplaints`); // no student_id param
+        const res = await fetch(`/api/HostelComplaints?student_id=${encodeURIComponent(student_id)}`);
         const data = await res.json();
-        setComplaints(data);
+        setComplaints(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch complaints", err);
       } finally {
@@ -288,7 +296,7 @@ function StudentDashboardContent() {
     };
 
     fetchComplaints();
-  }, []); // empty dependency: run once on mount
+  }, [student_id]);
 
 
 
@@ -316,20 +324,15 @@ function StudentDashboardContent() {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ id, role: localStorage.getItem("role") || "student", image: dataUrl }),
+          body: JSON.stringify({ id: student_id, role: "student", image: dataUrl }),
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || "Upload failed");
 
         const url = body.url;
-        setStudent((prev) => {
-          if (Array.isArray(prev) && prev.length) {
-            const copy = [...prev];
-            copy[0] = { ...copy[0], image: url, profileUrl: url };
-            return copy;
-          }
-          return { ...(prev || {}), image: url, profileUrl: url };
-        });
+        setStudent((prev) =>
+          prev.length ? [{ ...prev[0], image: url, profileUrl: url }, ...prev.slice(1)] : prev
+        );
       } catch (err) {
         console.error("Upload failed", err);
         alert("Image upload failed");
@@ -338,7 +341,28 @@ function StudentDashboardContent() {
     reader.readAsDataURL(file);
   };
 
-  const profileSrc = (Array.isArray(student) ? student[0]?.profileUrl || student[0]?.image : student?.profileUrl || student?.image) || "";
+  const profileSrc = student[0]?.profileUrl || student[0]?.image || "";
+
+  const saveProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/AuthStudents", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id: student_id, name: student_details?.name }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Save failed");
+      setStudent([body]);
+      setEditing(false);
+    } catch (err) {
+      console.error("Save failed", err);
+      alert(err.message || "Could not save profile");
+    }
+  };
 
   const handleExamFileUpload = (e, type) => {
     const file = e.target.files[0];
@@ -421,19 +445,23 @@ function StudentDashboardContent() {
               <FaUser /> My Profile
             </h2>
             <div className="flex items-center gap-8 mb-6">
-              {mounted ? (
+              {mounted && profileSrc ? (
                 <img
-                  src={profileSrc || "/uploads/default-avatar.png"}
+                  src={profileSrc}
                   alt="Profile photo"
                   className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-indigo-500"
                 />
+              ) : mounted ? (
+                <div className="w-32 h-32 rounded-full shadow-lg bg-indigo-100 border-4 border-indigo-500 flex items-center justify-center text-4xl font-bold text-indigo-600">
+                  {(student_details?.name || "?").trim().charAt(0).toUpperCase()}
+                </div>
               ) : (
                 <div className="w-32 h-32 rounded-full shadow-lg bg-gray-100 border-4 border-indigo-500" />
               )}
               <div>
                 <label className="cursor-pointer bg-indigo-600 text-white px-4 py-2 rounded-lg shadow flex items-center gap-2">
                   <FaEdit /> Change Photo
-                  <input type="file" className="hidden" onChange={handleImageUpload} />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                 </label>
               </div>
             </div>
@@ -450,7 +478,9 @@ function StudentDashboardContent() {
                   key={idx}
                   value={field.value}
                   disabled={field.disabled}
-                  onChange={(e) => setStudent({ ...student, name: e.target.value })}
+                  onChange={(e) =>
+                    setStudent((prev) => (prev.length ? [{ ...prev[0], name: e.target.value }, ...prev.slice(1)] : prev))
+                  }
                   className="p-4 border rounded-lg shadow-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 />
               ))}
@@ -464,7 +494,7 @@ function StudentDashboardContent() {
               </button>
             ) : (
               <button
-                onClick={() => setEditing(false)}
+                onClick={saveProfile}
                 className="mt-6 px-6 py-2 bg-green-600 text-white rounded-xl shadow hover:bg-green-500 transition flex items-center gap-2"
               >
                 <FaEdit /> Save Changes
@@ -516,10 +546,7 @@ function StudentDashboardContent() {
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
                 {timetables.map((t) => {
-                  const isImage =
-                    t.file_url.endsWith(".jpg") ||
-                    t.file_url.endsWith(".jpeg") ||
-                    t.file_url.endsWith(".png");
+                  const isImage = t.is_image || /.(jpe?g|png|gif|webp)$/i.test(t.file_url || "");
 
                   return (
                     <div
@@ -679,11 +706,11 @@ function StudentDashboardContent() {
                   {/* Subjects and Marks */}
                   <div>
                     <p className="text-sm text-gray-500 mb-2">Subjects & Marks</p>
-                    {r?.subjects.map((sub, i) => (
+                    {(r?.subjects || []).map((sub, i) => (
                       <div key={i} className="flex justify-between bg-gray-50 rounded-lg p-2 mb-1">
                         <span className="font-medium text-gray-700">{sub}</span>
                         <span className="font-bold text-gray-900">
-                          {r?.marks[i]} / {r?.total_marks[i]}
+                          {r?.marks?.[i] ?? "—"} / {r?.total_marks?.[i] ?? "—"}
                         </span>
                       </div>
                     ))}
@@ -709,7 +736,7 @@ function StudentDashboardContent() {
             ) : (
               <div className="grid md:grid-cols-2 gap-8">
                 {issuedBooks.map((book, index) => {
-                  const issueDate = new Date(book.created_at).toLocaleDateString();
+                  const issueDate = new Date(book.issue_date || book.created_at).toLocaleDateString();
                   const returnDate = book.return_date
                     ? new Date(book.return_date).toLocaleDateString()
                     : "Not Assigned";
@@ -738,9 +765,8 @@ function StudentDashboardContent() {
 
                       <div className="space-y-2 text-gray-700 text-sm">
                         <p><strong>Book ID:</strong> {book.book_id}</p>
-                        <p><strong>Author:</strong> {book.author ?? "—"}</p>
                         <p><strong>Issued By (Staff):</strong> {book.staff_id}</p>
-                        <p><strong>Issue Date:</strong> {book.created_at}</p>
+                        <p><strong>Issue Date:</strong> {issueDate}</p>
                         <p><strong>Return Date:</strong> {returnDate || "not specified"}</p>
                       </div>
 
@@ -791,12 +817,11 @@ function StudentDashboardContent() {
             {!loadingHostel && hostelData && (
               <>
                 <div className="grid md:grid-cols-2 gap-6">
-                  <InfoBox label="Hostel Name" value={hostelData.hostel_name || "Maya Devi Hostel"} />
+                  <InfoBox label="Hostel Name" value={hostelData.hostel_name || "—"} />
                   <InfoBox label="Room Number" value={hostelData.RoomNo || "—"} />
-                  <InfoBox label="Block" value={hostelData.block || "Boys Hostel"} />
-                  <InfoBox label="Fee Status" value={hostelData.fee_status} />
-                  <InfoBox label="Warden" value={hostelData.warden || "Mr. Sharma"} />
-                  <InfoBox label="Contact" value={hostelData.contact || "—"} />
+                  <InfoBox label="Room Type" value={hostelData.room_type || "—"} />
+                  <InfoBox label="Fee Status" value={hostelData.fee_status || "—"} />
+                  <InfoBox label="Allotted On" value={hostelData.created_at ? new Date(hostelData.created_at).toLocaleDateString() : "—"} />
                 </div>
 
                 <div className="mt-10">

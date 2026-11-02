@@ -4,6 +4,7 @@ import { FiUsers, FiClock, FiSearch } from 'react-icons/fi';
 import { AiOutlineCheckCircle } from 'react-icons/ai';
 import Pagination from '../Components/Pagination';
 import DownloadReportButton from '../Components/DownloadReportButton';
+import { homePath } from '@/lib/homePath';
 
 export default function UserRoleManagement() {
     const [users, setUsers] = useState([]);
@@ -18,15 +19,15 @@ export default function UserRoleManagement() {
 
     const fetchUsers = async (page = 1) => {
         try {
-            const res = await fetch(`/api/users?page=${page}&limit=10`);
+            const res = await fetch(`/api/users?page=${page}&limit=50`);
             const data = await res.json();
 
             if (data.pagination) {
-                setUsers(data.data);
+                setUsers(Array.isArray(data.data) ? data.data : []);
                 setPagination(data.pagination);
             } else {
                 // Fallback if API returns simple array
-                setUsers(data);
+                setUsers(Array.isArray(data) ? data : []);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
@@ -38,11 +39,15 @@ export default function UserRoleManagement() {
     }, []);
 
     async function changeRole(id, Staff_type) {
-        await fetch('/api/users', {
+        const res = await fetch('/api/users', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, Staff_type })
         });
+        if (!res.ok) {
+            alert('Could not update role');
+            return;
+        }
 
         setUsers(prev =>
             prev.map(u =>
@@ -54,8 +59,8 @@ export default function UserRoleManagement() {
     // Filter & Search
     const filteredUsers = users.filter(user => {
         const matchesRole = roleFilter ? user.Staff_type === roleFilter : true;
-        const matchesSearch = user.Staff_name.toLowerCase().includes(search.toLowerCase())
-            || user.Staff_email.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = String(user.Staff_name || '').toLowerCase().includes(search.toLowerCase())
+            || String(user.Staff_email || '').toLowerCase().includes(search.toLowerCase());
         return matchesRole && matchesSearch;
     });
 
@@ -68,6 +73,13 @@ export default function UserRoleManagement() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-indigo-50 p-8">
             <div className="max-w-7xl mx-auto">
+
+                <button
+                    onClick={() => (window.location.href = homePath())}
+                    className="mb-4 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                    ← Back to Dashboard
+                </button>
 
                 {/* Header */}
                 <div className="mb-8 text-center relative">
@@ -84,7 +96,7 @@ export default function UserRoleManagement() {
                         <div className="bg-indigo-50/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-lg border border-indigo-200 flex items-center gap-3 transition transform hover:-translate-y-1 hover:shadow-2xl">
                             <FiUsers className="text-indigo-500 text-2xl" />
                             <span className="text-indigo-800 font-semibold">
-                                Total Users: {users.length}
+                                Total Users: {pagination.totalItems || users.length}
                             </span>
                         </div>
                         {Object.keys(roleStats).map(role => (

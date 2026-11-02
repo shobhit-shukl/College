@@ -1,74 +1,49 @@
-// app/api/AuthStudents/route.js
- import { pool } from "@/lib/db";
- import { requireAuth } from "@/lib/auth";
- import fs from "fs";
- import path from "path";
+import { pool } from "@/lib/db";
+import { requireAuth, scopedStudentId } from "@/lib/auth";
 
-// export async function POST(req) {
-//   try {
-//     const body = await req.json();   // body read karo
-//     const { id } = body;
-
-//     console.log(id);
-
-//     await pool.query(
-//         `SELECT * FROM "students" WHERE "student_id" = $1`,
-//         [id]     
-//       );
-
-//     return new Response(
-//       JSON.stringify({ id }),
-//       { status: 200 }
-//     );
-
-//   } catch (error) {
-//     console.error("DB Error:", error);
-//     return new Response(
-//       JSON.stringify({ error: error.message }),
-//       { status: 500 }
-//     );
-//   }
-// }
-
+// Never send the password column to the browser
+function publicStudent({ Password, ...student }) {
+  return { ...student, profileUrl: student.image || null };
+}
 
 export async function POST(req) {
   try {
-    const user = requireAuth(req);
+    requireAuth(req);
     const body = await req.json();
-    const { id } = body;
-
-    // students can only fetch their own record
-    if (user.role === "student" && String(user.id) !== String(id)) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
-    }
+    const id = scopedStudentId(req, body.id);
 
     const result = await pool.query(
       `SELECT * FROM "students" WHERE "student_id" = $1`,
       [id]
     );
 
-    const students = result.rows;
-
-    // attach profileUrl if an uploads file exists for this student
-    try {
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
-      if (fs.existsSync(uploadsDir) && students.length) {
-        const files = await fs.promises.readdir(uploadsDir);
-        const prefix = `student-${id}`;
-        const match = files.find((f) => f.startsWith(prefix));
-        if (match) students[0].profileUrl = `/uploads/${match}`;
-      }
-    } catch (e) {
-      console.warn("profile lookup failed", e);
-    }
-
-    return new Response(JSON.stringify(students), { status: 200 });
-
+    return Response.json(result.rows.map(publicStudent));
   } catch (error) {
     console.error("DB Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500 }
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// A student updating their own profile (currently just the display name)
+export async function PUT(req) {
+  try {
+    const body = await req.json();
+    const id = scopedStudentId(req, body.id);
+    const name = String(body.name || "").trim();
+
+    if (!id || !name) {
+      return Response.json({ error: "id and name are required" }, { status: 400 });
+    }
+
+    const result = await pool.query(
+      `UPDATE "students" SET name = $1 WHERE "student_id" = $2 RETURNING *`,
+      [name, id]
     );
+    if (!result.rowCount) return Response.json({ error: "Student not found" }, { status: 404 });
+
+    return Response.json(publicStudent(result.rows[0]));
+  } catch (error) {
+    console.error("DB Error:", error);
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }

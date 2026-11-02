@@ -14,7 +14,8 @@ export async function GET(req) {
         "Staff_name" AS name,
         "Staff_dept" AS department,
         "Staff_email" AS email,
-        "Phone" AS phone
+        "Phone" AS phone,
+        "Staff_type" AS role
         FROM "Staff"`;
 
     const conditions = [];

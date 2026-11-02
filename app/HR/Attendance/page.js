@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useEffect } from 'react';
 import Loader from '@/app/Components/Loader';
+import BackLink from '@/app/Components/BackLink';
 import { Eye } from 'lucide-react';
 import { Clock, Calendar, CheckSquare, XSquare, User } from 'lucide-react';
 
@@ -41,6 +42,7 @@ export default function StaffAttendanceTable() {
 
     return (
         <div className="min-h-screen p-8 bg-gray-50">
+            <div className="max-w-6xl mx-auto"><BackLink href="/HR" label="HR Management" /></div>
             <div className="max-w-6xl mx-auto shadow-2xl rounded-xl overflow-hidden">
 
                 {/* Header with Gradient */}

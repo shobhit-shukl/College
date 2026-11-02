@@ -56,7 +56,32 @@ export default function IssueBookPage() {
 
   useEffect(() => {
     fetchIssuedBooks();
+    // Default the issuing staff member to whoever is logged in
+    const userId = localStorage.getItem('userId');
+    if (userId) setFormData((prev) => ({ ...prev, staff_id: prev.staff_id || userId }));
   }, []);
+
+  const [returningId, setReturningId] = useState(null);
+
+  const handleReturn = async (id) => {
+    setReturningId(id);
+    try {
+      const res = await fetch('/api/issue-book', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Could not mark returned');
+      setissuedbooks((prev) => prev.map((b) => (b.id === id ? { ...b, returned: true } : b)));
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    } finally {
+      setReturningId(null);
+    }
+  };
+
+  const formatDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
   // 5. POST Request: Handle Form Submission
 const handleSubmit = async (e) => {
@@ -86,11 +111,9 @@ const handleSubmit = async (e) => {
 
         // 5. Handle Success
         setSuccess(true);
-        console.log("Server Response:", result);
-
-        // Optional: Clear the form after success
+        // Clear the form after success, keeping the staff ID
         setFormData({
-            staff_id: '',
+            staff_id: formData.staff_id,
             student_id: '',
             book_id: '',
             issue_date: new Date().toISOString().substring(0, 10),
@@ -124,9 +147,9 @@ const handleSubmit = async (e) => {
       >
         {/* Navigation Bar */}
         <div className="flex justify-between items-center mb-8">
-            <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-400 hover:text-purple-600 transition-colors group font-semibold text-sm">
+            <Link href="/library" className="inline-flex items-center gap-2 text-slate-400 hover:text-purple-600 transition-colors group font-semibold text-sm">
                 <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
-                Return to Dashboard
+                Back to Library
             </Link>
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-300">System Secure Connection</div>
         </div>
@@ -171,7 +194,7 @@ const handleSubmit = async (e) => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Recipient Student ID</label>
                 <div className="relative group">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 group-focus-within:text-indigo-600 transition-colors" />
-                  <input type="text" name="student_id" placeholder="STU-2025-001" required value={formData.student_id} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-12 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 outline-none transition-all" />
+                  <input type="text" name="student_id" placeholder="STU2024001" required value={formData.student_id} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-12 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-600 outline-none transition-all" />
                 </div>
               </div>
 
@@ -180,7 +203,7 @@ const handleSubmit = async (e) => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Book / Asset ID</label>
                 <div className="relative group">
                   <BookMarked className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fuchsia-400 group-focus-within:text-fuchsia-600 transition-colors" />
-                  <input type="text" name="book_id" placeholder="BK-9912" required value={formData.book_id} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-12 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-fuchsia-500/5 focus:border-fuchsia-600 outline-none transition-all" />
+                  <input type="text" name="book_id" placeholder="BK001" required value={formData.book_id} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 p-3.5 pl-12 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-fuchsia-500/5 focus:border-fuchsia-600 outline-none transition-all" />
                 </div>
               </div>
             </div>
@@ -237,6 +260,7 @@ const handleSubmit = async (e) => {
                     <th className="p-6 text-[10px] font-bold text-purple-500 uppercase tracking-widest">Student</th>
                     <th className="p-6 text-[10px] font-bold text-purple-500 uppercase tracking-widest">Staff</th>
                     <th className="p-6 text-[10px] font-bold text-purple-500 uppercase tracking-widest">Issue Date</th>
+                    <th className="p-6 text-[10px] font-bold text-purple-500 uppercase tracking-widest">Due Date</th>
                     <th className="p-6 text-[10px] font-bold text-purple-500 uppercase tracking-widest">Status</th>
                   </tr>
                 </thead>
@@ -244,7 +268,7 @@ const handleSubmit = async (e) => {
                   <AnimatePresence>
                     {isLoadingList ? (
                       <tr>
-                        <td colSpan="5" className="p-20 text-center">
+                        <td colSpan="6" className="p-20 text-center">
                             <Loader2 className="animate-spin text-purple-400 mx-auto" size={32} />
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4">Syncing Records...</p>
                         </td>
@@ -263,22 +287,45 @@ const handleSubmit = async (e) => {
                                 <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                                 {item.book_id}
                             </span>
+                            {item.book_name && <div className="text-xs text-slate-400 mt-1 ml-3.5">{item.book_name}</div>}
                           </td>
-                          <td className="p-6 text-sm font-semibold text-slate-600">{item.student_id}</td>
+                          <td className="p-6 text-sm font-semibold text-slate-600">
+                            {item.student_id}
+                            {item.student_name && <div className="text-xs font-medium text-slate-400 mt-1">{item.student_name}</div>}
+                          </td>
                           <td className="p-6 text-sm font-medium text-slate-400">{item.staff_id}</td>
                           <td className="p-6 text-sm font-medium text-slate-500">
-                            {item.issue_date}
+                            {formatDate(item.issue_date)}
+                          </td>
+                          <td className="p-6 text-sm font-medium text-slate-500">
+                            {formatDate(item.return_date)}
                           </td>
                           <td className="p-6">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase border border-emerald-100 shadow-sm">
-                              <CheckCircle2 size={10} /> Active
-                            </span>
+                            {item.returned ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[9px] font-black uppercase border border-slate-200 shadow-sm">
+                                <CheckCircle2 size={10} /> Returned
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase border border-emerald-100 shadow-sm">
+                                  <CheckCircle2 size={10} /> Active
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReturn(item.id)}
+                                  disabled={returningId === item.id}
+                                  className="px-3 py-1 rounded-full bg-purple-600 text-white text-[9px] font-black uppercase hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                  {returningId === item.id ? 'Saving…' : 'Mark Returned'}
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </motion.tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="5" className="p-20 text-center">
+                        <td colSpan="6" className="p-20 text-center">
                           <div className="text-slate-300 italic text-sm">No recent issue logs available.</div>
                         </td>
                       </tr>

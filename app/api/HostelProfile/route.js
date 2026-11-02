@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import { scopedStudentId } from "@/lib/auth";
+
 export async function POST(req) {
   try {
-    const { student_id } = await req.json();
+    const body = await req.json();
+    const student_id = scopedStudentId(req, body.student_id);
 
     if (!student_id) {
       return NextResponse.json(
@@ -17,8 +20,11 @@ export async function POST(req) {
         hs."Student_id",
         hs."RoomNo",
         hs.fee_status,
+        hs.hostel_name,
+        hr.room_type,
         hs.created_at
       FROM "Hostel_Students" hs
+      LEFT JOIN "Hostel_Rooms" hr ON hr.room_no = hs."RoomNo"
       WHERE hs."Student_id" = $1
       LIMIT 1
     `;

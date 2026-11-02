@@ -18,7 +18,9 @@ export async function GET(req) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    let query = "SELECT * FROM students";
+    // Never return the Password column; image is left out to keep lists light
+    const STUDENT_COLUMNS = 'id, student_id, name, email, "Phone", course, department, year, semester, dob, total_fee, "pending _fee", created_at';
+    let query = `SELECT ${STUDENT_COLUMNS} FROM students`;
     let countQuery = "SELECT COUNT(*) FROM students";
 
     // Create filters conditions
@@ -125,7 +127,7 @@ export async function POST(req) {
     const semesterNum = Number(semester);
 
     const result = await pool.query(
-      "INSERT INTO students (student_id, name, course, department, year, semester) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      `INSERT INTO students (student_id, name, course, department, year, semester) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, student_id, name, email, "Phone", course, department, year, semester, dob, total_fee, "pending _fee", created_at`,
       [student_id, name, course, department, yearNum, semesterNum]
     );
 
@@ -148,7 +150,7 @@ export async function PUT(req) {
       `UPDATE students 
        SET student_id=$1, semester=$2, name=$3, year=$4, course=$5, department=$6
        WHERE id=$7 
-       RETURNING *`,
+       RETURNING id, student_id, name, email, "Phone", course, department, year, semester, dob, total_fee, "pending _fee", created_at`,
       [
         body.student_id,
         body.semester,
@@ -166,7 +168,7 @@ export async function PUT(req) {
     const result = await pool.query(
       `INSERT INTO students (student_id, semester, name, year, course, department)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
+       RETURNING id, student_id, name, email, "Phone", course, department, year, semester, dob, total_fee, "pending _fee", created_at`,
       [
         body.student_id,
         body.semester,
@@ -210,7 +212,7 @@ export async function PATCH(req) {
     }
 
     const result = await pool.query(
-      `UPDATE students SET "pending _fee" = $1 WHERE id = $2 RETURNING *`,
+      `UPDATE students SET "pending _fee" = $1 WHERE id = $2 RETURNING id, student_id, name, email, "Phone", course, department, year, semester, dob, total_fee, "pending _fee", created_at`,
       [pendingValue, Number(id)]
     );
 

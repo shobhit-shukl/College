@@ -1,6 +1,7 @@
 "use client";
 
 import Loader from "@/app/Components/Loader";
+import BackLink from "@/app/Components/BackLink";
 import DownloadReportButton from "@/app/Components/DownloadReportButton";
 import Pagination from "@/app/Components/Pagination";
 import { useEffect, useState } from "react";
@@ -74,6 +75,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="min-h-screen p-10 text-white bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800">
+      <BackLink href="/HR" label="HR Management" light />
 
       {/* Page Title */}
       <h1 className="text-4xl font-bold mb-8 drop-shadow-md">Employees Management</h1>
